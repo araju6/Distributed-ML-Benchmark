@@ -92,3 +92,4 @@ sudo apt install dkms
 sudo apt install nvidia-driver-535
 ```
 
+

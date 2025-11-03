@@ -2,8 +2,10 @@ import torch
 from benchmark.core.config import Config
 from benchmark.core.benchmark_runner import BenchmarkRunner
 from benchmark.models.resnet import ResNetWrapper
+from benchmark.models.mobilenet import MobileNetWrapper
 from benchmark.compilers.pytorch_eager import PyTorchEagerCompiler
 from benchmark.compilers.torch_inductor import TorchInductorCompiler
+from benchmark.compilers.torchscript import TorchScriptCompiler
 from benchmark.utils.device import get_device
 from benchmark.utils.output import ResultsWriter
 
@@ -13,15 +15,21 @@ def get_compiler(compiler_name: str):
         return PyTorchEagerCompiler()
     elif compiler_name == "torch_inductor":
         return TorchInductorCompiler(mode="default")
+    elif compiler_name == "torchscript" or compiler_name == "torchscript_trace":
+        return TorchScriptCompiler(method="trace")
+    elif compiler_name == "torchscript_script":
+        return TorchScriptCompiler(method="script")
     else:
-        raise ValueError(f"Unknown compiler: {compiler_name}")
+        raise ValueError(f"Unknown compiler: {compiler_name}. Available: pytorch_eager, torch_inductor, torchscript")
 
 def get_model(model_name: str, input_shape):
     """Factory function to create model instances"""
     if model_name == "resnet50":
         return ResNetWrapper(input_shape=tuple(input_shape), pretrained=True)
+    elif model_name == "mobilenet_v3":
+        return MobileNetWrapper(input_shape=tuple(input_shape), pretrained=True)
     else:
-        raise ValueError(f"Unknown model: {model_name}")
+        raise ValueError(f"Unknown model: {model_name}. Available: resnet50, mobilenet_v3")
 
 def main():
     config = Config.from_yaml("config.yaml")

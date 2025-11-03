@@ -12,7 +12,7 @@ model:
 
 compilers:
   - pytorch_eager      # Baseline (no compilation)
-  - torch_inductor     # PyTorch 2.0 compiler
+  - torchscript        # TorchScript JIT compiler (works on P100!)
 
 output:
   format: csv
