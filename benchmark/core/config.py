@@ -21,6 +21,14 @@ class ModelConfig:
             raise ValueError("Either input_shape or max_length must be provided for model config")
 
 @dataclass
+class RayConfig:
+    enabled: bool = False
+    num_gpus: Optional[int] = None
+    num_cpus: Optional[int] = None
+    head_address: Optional[str] = None
+    resources_per_task: dict = field(default_factory=lambda: {'num_gpus': 1, 'num_cpus': 2})
+
+@dataclass
 class OutputConfig:
     format: str
     save_path: str
@@ -31,6 +39,7 @@ class Config:
     models: List[ModelConfig]  # Changed from single model to list
     compilers: List[str]
     output: OutputConfig
+    ray: RayConfig = field(default_factory=RayConfig)
     
     @classmethod
     def from_yaml(cls, path: str):
@@ -48,9 +57,13 @@ class Config:
         
         models = [ModelConfig(**model_data) for model_data in models_data]
         
+        # Handle Ray config
+        ray_data = data.get('ray', {})
+        
         return cls(
             benchmark=BenchmarkConfig(**data['benchmark']),
             models=models,
             compilers=data['compilers'],
-            output=OutputConfig(**data['output'])
+            output=OutputConfig(**data['output']),
+            ray=RayConfig(**ray_data)
         )

@@ -40,6 +40,15 @@ compilers:
   # - tensorrt          # TensorRT FP32 (standard precision)
   # - tensorrt_fp16     # TensorRT FP16 (faster, may have accuracy loss)
 
+ray:
+  enabled: false              # Enable distributed execution with Ray
+  num_gpus: null              # Auto-detect if null, otherwise specify number
+  num_cpus: null              # Auto-detect if null
+  head_address: null          # Connect to existing cluster if provided (for K8s)
+  resources_per_task:
+    num_gpus: 1               # GPUs per benchmark task
+    num_cpus: 2               # CPUs per benchmark task
+
 output:
   format: csv
   save_path: results/
