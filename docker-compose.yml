@@ -1,0 +1,28 @@
+version: '3.8'
+
+# Simple docker-compose for single-container testing
+# Use docker-compose.ray.yml for multi-container Ray cluster
+
+services:
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: ml-benchmark
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all  # Use all available GPUs
+              capabilities: [gpu]
+    command: ["python", "/workspace/run_benchmark.py"]
+    # Uncomment for distributed execution:
+    # command: ["python", "/workspace/run_benchmark.py", "--distributed"]
+

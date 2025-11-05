@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Ray head node
+  ray-head:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: ray-head
+    environment:
+      - RAY_ROLE=head
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8265:8265"  # Ray dashboard
+      - "10001:10001"  # Ray client
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0  # Head doesn't need GPU
+              capabilities: [gpu]
+    command: ["ray", "start", "--head", "--block"]
+    networks:
+      - ray-network
+
+  # Ray worker nodes (adjust count based on GPUs)
+  ray-worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: ray-worker-1
+    environment:
+      - RAY_ROLE=worker
+      - RAY_HEAD_ADDRESS=ray-head:10001
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - ray-head
+    networks:
+      - ray-network
+
+  ray-worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: ray-worker-2
+    environment:
+      - RAY_ROLE=worker
+      - RAY_HEAD_ADDRESS=ray-head:10001
+      - CUDA_VISIBLE_DEVICES=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - ray-head
+    networks:
+      - ray-network
+
+  # Benchmark runner (executes benchmarks)
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: benchmark-runner
+    environment:
+      - RAY_HEAD_ADDRESS=ray-head:10001
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0  # Benchmark runner doesn't need GPU directly
+              capabilities: [gpu]
+    command: ["python", "/workspace/run_benchmark.py", "--distributed"]
+    depends_on:
+      - ray-head
+      - ray-worker-1
+      - ray-worker-2
+    networks:
+      - ray-network
+
+networks:
+  ray-network:
+    driver: bridge
+

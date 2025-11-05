@@ -1,0 +1,67 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.venv
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Results and outputs
+results/
+*.csv
+*.log
+*.prof
+*.nsys-rep
+
+# Monitoring
+monitoring/
+grafana/
+
+# Documentation
+*.md
+!README.md
+plan.md
+
+# Scripts (we copy what we need)
+setup.sh
+startup.sh
+fix_gpu.sh
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Kubernetes
+k8s/
+*.yaml
+*.yml
+!config.yaml
+
+# Misc
+.DS_Store
+*.tmp
+*.bak
+
