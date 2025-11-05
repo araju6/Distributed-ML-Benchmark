@@ -6,6 +6,9 @@ from benchmark.models.mobilenet import MobileNetWrapper
 from benchmark.compilers.pytorch_eager import PyTorchEagerCompiler
 from benchmark.compilers.torch_inductor import TorchInductorCompiler
 from benchmark.compilers.torchscript import TorchScriptCompiler
+from benchmark.compilers.onnx_runtime import ONNXRuntimeCompiler
+from benchmark.compilers.tvm import TVMCompiler
+from benchmark.compilers.tensorrt import TensorRTCompiler
 from benchmark.utils.device import get_device
 from benchmark.utils.output import ResultsWriter
 
@@ -18,8 +21,21 @@ def get_compiler(compiler_name: str):
         return TorchScriptCompiler(method="trace")
     elif compiler_name == "torchscript_script":
         return TorchScriptCompiler(method="script")
+    elif compiler_name == "onnx_runtime":
+        return ONNXRuntimeCompiler()
+    elif compiler_name == "tvm":
+        return TVMCompiler()
+    elif compiler_name == "tvm_autotuned":
+        return TVMCompiler(use_autotuning=True)
+    elif compiler_name == "tensorrt" or compiler_name == "tensorrt_fp32":
+        return TensorRTCompiler(fp16_mode=False)
+    elif compiler_name == "tensorrt_fp16":
+        return TensorRTCompiler(fp16_mode=True)
     else:
-        raise ValueError(f"Unknown compiler: {compiler_name}. Available: pytorch_eager, torch_inductor, torchscript")
+        raise ValueError(
+            f"Unknown compiler: {compiler_name}. "
+            f"Available: pytorch_eager, torch_inductor, torchscript, onnx_runtime, tvm, tvm_autotuned, tensorrt, tensorrt_fp16"
+        )
 
 def get_model(model_name: str, input_shape):
     if model_name == "resnet50":

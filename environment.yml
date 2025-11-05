@@ -22,3 +22,9 @@ dependencies:
   - pip
   - pip:
     - transformers==4.35.0  # Compatible with PyTorch 2.1.0
+    - onnxruntime-gpu==1.16.3  # ONNX Runtime with GPU support
+    - apache-tvm  # TVM compiler (install from source for best performance)
+    # Note: TensorRT requires manual installation from NVIDIA
+    # Install TensorRT and pycuda separately:
+    # - Download from https://developer.nvidia.com/tensorrt
+    # - pip install pycuda

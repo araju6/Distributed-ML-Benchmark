@@ -10,6 +10,8 @@ anaconda3/
 conda-meta/
 *.conda
 
+plan.md
+
 # Conda environment files (keep environment.yml, but ignore local envs)
 .conda/
 envs/
