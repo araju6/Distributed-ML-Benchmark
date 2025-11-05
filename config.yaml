@@ -4,20 +4,41 @@ benchmark:
   warmup_iterations: 10      # Iterations to skip (GPU warmup, JIT compilation)
   measured_iterations: 100   # Iterations to measure and report
 
-model:
-  name: resnet50
-  input_shape: [3, 224, 224]  # ImageNet standard (C, H, W) for vision models
-  batch_sizes: [1, 32]        # Single image vs batched
-  precision: fp32             # fp32, fp16, or int8
+models:
+  - name: resnet50
+    input_shape: [3, 224, 224]  # ImageNet standard (C, H, W) for vision models
+    batch_sizes: [1, 32]        # Single image vs batched
+    precision: fp32             # fp32, fp16, or int8
+  - name: mobilenet_v3_large
+    input_shape: [3, 224, 224]
+    batch_sizes: [1, 32]
+    precision: fp32
+  - name: bert_base
+    max_length: 128             # Sequence length for NLP models
+    batch_sizes: [1, 8]         # Smaller batches for NLP models
+    precision: fp32
+  - name: gpt2
+    max_length: 128             # Sequence length for NLP models
+    batch_sizes: [1, 4]         # Even smaller batches for GPT-2
+    precision: fp32
 
 compilers:
-  - pytorch_eager      # Baseline (no compilation)
+  # PyTorch compilers
+  - pytorch_eager      # Baseline (no compilation, reference implementation)
   - torchscript        # TorchScript JIT compiler (works on P100!)
-  - onnx_runtime       # ONNX Runtime with GPU support
-  # - tvm               # Apache TVM compiler
+  # - torch_inductor    # TorchInductor (doesn't work on P100, requires newer GPU)
+  
+  # Cross-platform compilers
+  - onnx_runtime       # ONNX Runtime with GPU support (CUDAExecutionProvider)
+  
+  # TVM compilers (requires apache-tvm installation)
+  # - tvm               # Apache TVM compiler (standard optimization)
   # - tvm_autotuned     # TVM with autotuning (slower compilation, better performance)
-  # - tensorrt          # TensorRT (FP32, may have limitations on P100)
-  # - tensorrt_fp16     # TensorRT with FP16 precision
+  
+  # TensorRT compilers (requires NVIDIA TensorRT installation)
+  # Note: TensorRT may have limitations on P100 (compute capability 6.0)
+  # - tensorrt          # TensorRT FP32 (standard precision)
+  # - tensorrt_fp16     # TensorRT FP16 (faster, may have accuracy loss)
 
 output:
   format: csv

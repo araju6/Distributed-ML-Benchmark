@@ -3,6 +3,8 @@ from benchmark.core.config import Config
 from benchmark.core.benchmark_runner import BenchmarkRunner
 from benchmark.models.resnet import ResNetWrapper
 from benchmark.models.mobilenet import MobileNetWrapper
+from benchmark.models.bert import BERTWrapper
+from benchmark.models.gpt2 import GPT2Wrapper
 from benchmark.compilers.pytorch_eager import PyTorchEagerCompiler
 from benchmark.compilers.torch_inductor import TorchInductorCompiler
 from benchmark.compilers.torchscript import TorchScriptCompiler
@@ -37,18 +39,43 @@ def get_compiler(compiler_name: str):
             f"Available: pytorch_eager, torch_inductor, torchscript, onnx_runtime, tvm, tvm_autotuned, tensorrt, tensorrt_fp16"
         )
 
-def get_model(model_name: str, input_shape):
+def get_model(model_config):
+    """Create model wrapper from config.
+    
+    Args:
+        model_config: ModelConfig object with name, input_shape/max_length, etc.
+    
+    Returns:
+        ModelWrapper instance
+    """
+    model_name = model_config.name
+    
     if model_name == "resnet50":
-        return ResNetWrapper(input_shape=tuple(input_shape), pretrained=True)
-    elif model_name == "mobilenet_v3":
-        return MobileNetWrapper(input_shape=tuple(input_shape), pretrained=True)
+        if model_config.input_shape is None:
+            raise ValueError("resnet50 requires input_shape")
+        return ResNetWrapper(input_shape=tuple(model_config.input_shape), pretrained=True)
+    elif model_name == "mobilenet_v3_large":
+        if model_config.input_shape is None:
+            raise ValueError("mobilenet_v3_large requires input_shape")
+        return MobileNetWrapper(input_shape=tuple(model_config.input_shape), pretrained=True)
+    elif model_name == "bert_base":
+        if model_config.max_length is None:
+            raise ValueError("bert_base requires max_length")
+        return BERTWrapper(max_length=model_config.max_length, pretrained=True)
+    elif model_name == "gpt2":
+        if model_config.max_length is None:
+            raise ValueError("gpt2 requires max_length")
+        return GPT2Wrapper(max_length=model_config.max_length, pretrained=True)
     else:
-        raise ValueError(f"Unknown model: {model_name}. Available: resnet50, mobilenet_v3")
+        raise ValueError(
+            f"Unknown model: {model_name}. "
+            f"Available: resnet50, mobilenet_v3_large, bert_base, gpt2"
+        )
 
 def main():
     """Entry point that loads config, runs all requested cases, and saves CSV.
 
-    Reads `config.yaml`, builds the model wrapper, iterates over compilers and
+    Reads `config.yaml`, builds model wrappers, iterates over models, compilers and
     batch sizes, and writes a single results file under the configured output
     directory. Nothing fancy, just orchestration.
     """
@@ -57,9 +84,8 @@ def main():
     print("="*70)
     print("ML COMPILER BENCHMARK FRAMEWORK")
     print("="*70)
-    print(f"Model: {cfg.model.name}")
+    print(f"Models: {', '.join([m.name for m in cfg.models])}")
     print(f"Compilers: {', '.join(cfg.compilers)}")
-    print(f"Batch sizes: {cfg.model.batch_sizes}")
     print(f"Warmup iterations: {cfg.benchmark.warmup_iterations}")
     print(f"Measured iterations: {cfg.benchmark.measured_iterations}")
     print("="*70)
@@ -72,22 +98,31 @@ def main():
         measured_iters=cfg.benchmark.measured_iterations
     )
     
-    model_wrapper = get_model(cfg.model.name, cfg.model.input_shape)
-    
     combined_results = []
     
-    for compiler_name in cfg.compilers:
-        compiler = get_compiler(compiler_name)
+    # Iterate over all models
+    for model_config in cfg.models:
+        print(f"\n{'#'*70}")
+        print(f"Processing model: {model_config.name}")
+        print(f"{'#'*70}")
         
-        for batch_size in cfg.model.batch_sizes:
-            run_stats = runner.run_benchmark(model_wrapper, compiler, batch_size)
-            combined_results.append(run_stats)
+        model_wrapper = get_model(model_config)
+        
+        # Iterate over compilers
+        for compiler_name in cfg.compilers:
+            compiler = get_compiler(compiler_name)
+            
+            # Iterate over batch sizes for this model
+            for batch_size in model_config.batch_sizes:
+                run_stats = runner.run_benchmark(model_wrapper, compiler, batch_size)
+                combined_results.append(run_stats)
     
     output_path = f"{cfg.output.save_path}/benchmark_results.csv"
     ResultsWriter.write_csv(combined_results, output_path)
     
     print("\n" + "="*70)
     print("BENCHMARK COMPLETE!")
+    print(f"Results saved to: {output_path}")
     print("="*70)
 
 if __name__ == "__main__":

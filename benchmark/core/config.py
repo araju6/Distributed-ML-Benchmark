@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 import yaml
 
 @dataclass
@@ -10,9 +10,15 @@ class BenchmarkConfig:
 @dataclass
 class ModelConfig:
     name: str
-    input_shape: List[int]
     batch_sizes: List[int]
     precision: str
+    input_shape: Optional[List[int]] = None  # For vision models (C, H, W)
+    max_length: Optional[int] = None  # For NLP models (sequence length)
+    
+    def __post_init__(self):
+        """Validate that either input_shape or max_length is provided."""
+        if self.input_shape is None and self.max_length is None:
+            raise ValueError("Either input_shape or max_length must be provided for model config")
 
 @dataclass
 class OutputConfig:
@@ -22,7 +28,7 @@ class OutputConfig:
 @dataclass
 class Config:
     benchmark: BenchmarkConfig
-    model: ModelConfig
+    models: List[ModelConfig]  # Changed from single model to list
     compilers: List[str]
     output: OutputConfig
     
@@ -31,9 +37,20 @@ class Config:
         with open(path, 'r') as f:
             data = yaml.safe_load(f)
         
+        # Handle both old format (single model) and new format (models list)
+        if 'model' in data:
+            # Legacy: single model
+            model_data = data['model']
+            models_data = [model_data]
+        else:
+            # New: list of models
+            models_data = data['models']
+        
+        models = [ModelConfig(**model_data) for model_data in models_data]
+        
         return cls(
             benchmark=BenchmarkConfig(**data['benchmark']),
-            model=ModelConfig(**data['model']),
+            models=models,
             compilers=data['compilers'],
             output=OutputConfig(**data['output'])
         )
