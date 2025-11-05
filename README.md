@@ -29,11 +29,38 @@ conda activate ml-benchmark
 
 ### Run Benchmarks
 
+**Sequential execution** (default):
 ```bash
 python run_benchmark.py
 ```
 
+**Distributed execution** (multi-GPU parallel with Ray):
+```bash
+python run_benchmark.py --distributed
+```
+
+Or enable in `config.yaml`:
+```yaml
+ray:
+  enabled: true
+```
+
 Results saved to `results/benchmark_results.csv`.
+
+### Distributed Execution with Ray
+
+Ray enables parallel execution across multiple GPUs on a single node. Each GPU runs a different benchmark task concurrently, providing 4-8× speedup on multi-GPU nodes.
+
+**Features:**
+- Automatic GPU detection and assignment
+- GPU isolation per task (via `CUDA_VISIBLE_DEVICES`)
+- Round-robin task distribution across GPUs
+- Support for connecting to existing Ray clusters (e.g., Kubernetes)
+
+**Configuration:**
+- Set `ray.enabled: true` in `config.yaml` or use `--distributed` flag
+- Configure `ray.num_gpus` to specify GPU count (auto-detect if null)
+- Set `ray.head_address` to connect to existing cluster (for K8s)
 
 ### Analyze Results
 
