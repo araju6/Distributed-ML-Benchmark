@@ -17,9 +17,10 @@ def analyze_results(csv_path="results/benchmark_results.csv"):
     with open(csv_path, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
+            model = row['model']
             compiler = row['compiler']
             batch_size = int(row['batch_size'])
-            key = (compiler, batch_size)
+            key = (model, compiler, batch_size)
             by_case[key] = {
                 'latency_mean_ms': float(row['latency_mean_ms']),
                 'throughput_samples_per_sec': float(row['throughput_samples_per_sec']),
@@ -31,24 +32,30 @@ def analyze_results(csv_path="results/benchmark_results.csv"):
     print("="*70)
     print()
     
-    # Show results by compiler (auto-detect all compilers)
-    compilers = sorted(set(c for c, _ in by_case.keys()))
-    batch_sizes = sorted(set(b for _, b in by_case.keys()))
+    # Show results by model, compiler, and batch size
+    models = sorted(set(m for m, _, _ in by_case.keys()))
+    compilers = sorted(set(c for _, c, _ in by_case.keys()))
+    batch_sizes = sorted(set(b for _, _, b in by_case.keys()))
     
-    for compiler in compilers:
-        print(f"Compiler: {compiler}")
-        print("-" * 70)
-        for batch_size in batch_sizes:
-            key = (compiler, batch_size)
-            if key in by_case:
-                stat_row = by_case[key]
-                print(f"  Batch Size {batch_size}:")
-                print(f"    Latency:     {stat_row['latency_mean_ms']:.2f} ms")
-                print(f"    Throughput:  {stat_row['throughput_samples_per_sec']:.2f} samples/sec")
-                if stat_row['compile_time_sec'] != 'N/A':
-                    compile_time = float(stat_row['compile_time_sec'])
-                    print(f"    Compile:     {compile_time:.2f} s")
-                print()
+    for model in models:
+        print(f"\n{'#'*70}")
+        print(f"Model: {model}")
+        print(f"{'#'*70}")
+        
+        for compiler in compilers:
+            print(f"\nCompiler: {compiler}")
+            print("-" * 70)
+            for batch_size in batch_sizes:
+                key = (model, compiler, batch_size)
+                if key in by_case:
+                    stat_row = by_case[key]
+                    print(f"  Batch Size {batch_size}:")
+                    print(f"    Latency:     {stat_row['latency_mean_ms']:.2f} ms")
+                    print(f"    Throughput:  {stat_row['throughput_samples_per_sec']:.2f} samples/sec")
+                    if stat_row['compile_time_sec'] != 'N/A':
+                        compile_time = float(stat_row['compile_time_sec'])
+                        print(f"    Compile:     {compile_time:.2f} s")
+                    print()
     
     # Compare compilers (compare eager vs all others if available)
     print("="*70)
@@ -60,28 +67,31 @@ def analyze_results(csv_path="results/benchmark_results.csv"):
         print("="*70)
         print()
         
-        for other_compiler in other_compilers:
-            for batch_size in batch_sizes:
-                eager_key = (eager_compiler, batch_size)
-                other_key = (other_compiler, batch_size)
-                
-                if eager_key in by_case and other_key in by_case:
-                    eager = by_case[eager_key]
-                    other = by_case[other_key]
+        for model in models:
+            print(f"\nModel: {model}")
+            print("-" * 70)
+            for other_compiler in other_compilers:
+                for batch_size in batch_sizes:
+                    eager_key = (model, eager_compiler, batch_size)
+                    other_key = (model, other_compiler, batch_size)
                     
-                    latency_speedup = eager['latency_mean_ms'] / other['latency_mean_ms']
-                    throughput_speedup = other['throughput_samples_per_sec'] / eager['throughput_samples_per_sec']
-                    
-                    print(f"{eager_compiler} vs {other_compiler} (Batch {batch_size}):")
-                    print(f"  Latency:    {eager['latency_mean_ms']:.2f} ms → {other['latency_mean_ms']:.2f} ms")
-                    print(f"  Speedup:    {latency_speedup:.2f}x faster ({((latency_speedup-1)*100):.1f}% improvement)")
-                    print(f"  Throughput: {eager['throughput_samples_per_sec']:.2f} → {other['throughput_samples_per_sec']:.2f} samples/sec")
-                    print(f"  Improvement: {throughput_speedup:.2f}x ({((throughput_speedup-1)*100):.1f}% increase)")
-                    
-                    if other['compile_time_sec'] != 'N/A':
-                        compile_time = float(other['compile_time_sec'])
-                        print(f"  Compile Cost: {compile_time:.2f} s (one-time, amortized over runs)")
-                    print()
+                    if eager_key in by_case and other_key in by_case:
+                        eager = by_case[eager_key]
+                        other = by_case[other_key]
+                        
+                        latency_speedup = eager['latency_mean_ms'] / other['latency_mean_ms']
+                        throughput_speedup = other['throughput_samples_per_sec'] / eager['throughput_samples_per_sec']
+                        
+                        print(f"  {eager_compiler} vs {other_compiler} (Batch {batch_size}):")
+                        print(f"    Latency:    {eager['latency_mean_ms']:.2f} ms → {other['latency_mean_ms']:.2f} ms")
+                        print(f"    Speedup:    {latency_speedup:.2f}x faster ({((latency_speedup-1)*100):.1f}% improvement)")
+                        print(f"    Throughput: {eager['throughput_samples_per_sec']:.2f} → {other['throughput_samples_per_sec']:.2f} samples/sec")
+                        print(f"    Improvement: {throughput_speedup:.2f}x ({((throughput_speedup-1)*100):.1f}% increase)")
+                        
+                        if other['compile_time_sec'] != 'N/A':
+                            compile_time = float(other['compile_time_sec'])
+                            print(f"    Compile Cost: {compile_time:.2f} s (one-time, amortized over runs)")
+                        print()
     
     print("="*70)
 
