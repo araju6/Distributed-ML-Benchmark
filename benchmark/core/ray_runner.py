@@ -46,6 +46,7 @@ def run_benchmark_task(
     from benchmark.models.bert import BERTWrapper
     from benchmark.models.gpt2 import GPT2Wrapper
     from benchmark.compilers.pytorch_eager import PyTorchEagerCompiler
+    from benchmark.compilers.torch_inductor import TorchInductorCompiler
     from benchmark.compilers.torchscript import TorchScriptCompiler
     from benchmark.compilers.onnx_runtime import ONNXRuntimeCompiler
     from benchmark.compilers.tvm import TVMCompiler
@@ -69,6 +70,8 @@ def run_benchmark_task(
     # Create compiler
     if compiler_name == "pytorch_eager":
         compiler = PyTorchEagerCompiler()
+    elif compiler_name == "torch_inductor":
+        compiler = TorchInductorCompiler(mode="default")
     elif compiler_name == "torchscript" or compiler_name == "torchscript_trace":
         compiler = TorchScriptCompiler(method="trace")
     elif compiler_name == "torchscript_script":
