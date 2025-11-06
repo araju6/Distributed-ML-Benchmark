@@ -1,0 +1,28 @@
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: benchmark-job
+  namespace: ml-benchmark
+spec:
+  # Submit job to existing RayCluster
+  # RayJob will automatically connect to the cluster specified below
+  clusterSelector:
+    matchLabels:
+      ray.io/cluster: ml-benchmark-cluster
+  
+  # Entrypoint script that runs benchmarks
+  entrypoint: |
+    python /workspace/run_benchmark.py --distributed --config /workspace/config.yaml
+  
+  # Runtime environment
+  runtimeEnv:
+    envVars:
+      PYTHONUNBUFFERED: "1"
+      RAY_HEAD_ADDRESS: "ml-benchmark-cluster-head-svc.ml-benchmark.svc.cluster.local:10001"
+  
+  # Job metadata
+  metadata:
+    labels:
+      app: ml-compiler-benchmark
+      job-type: benchmark
+

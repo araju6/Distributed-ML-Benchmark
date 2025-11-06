@@ -1,0 +1,113 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: ml-benchmark-cluster
+  namespace: ml-benchmark
+  labels:
+    ray.io/cluster: ml-benchmark-cluster
+    app: ml-compiler-benchmark
+spec:
+  # Ray version
+  rayVersion: '2.8.0'
+  
+  # Enable autoscaling (optional)
+  enableInTreeAutoscaling: false
+  
+  # Head node configuration
+  headGroupSpec:
+    serviceType: ClusterIP
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+      num-cpus: '4'
+      # Port for Ray client connections
+      port: '10001'
+    template:
+      metadata:
+        labels:
+          component: ray-head
+      spec:
+        containers:
+        - name: ray-head
+          image: ml-benchmark:latest  # Update with your image registry
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 8265  # Ray dashboard
+            name: dashboard
+          - containerPort: 10001  # Ray client
+            name: client
+          - containerPort: 6379  # Ray GCS
+            name: gcs-server
+          env:
+          - name: RAY_ROLE
+            value: "head"
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          resources:
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+          - name: config
+            mountPath: /workspace/config.yaml
+            subPath: config.yaml
+            readOnly: true
+          - name: results
+            mountPath: /workspace/results
+        volumes:
+        - name: config
+          configMap:
+            name: benchmark-config
+        - name: results
+          persistentVolumeClaim:
+            claimName: benchmark-results-pvc
+  
+  # Worker node configuration
+  workerGroupSpecs:
+  - replicas: 4  # Adjust based on number of GPUs available
+    minReplicas: 1
+    maxReplicas: 8  # Max workers for autoscaling
+    groupName: gpu-workers
+    rayStartParams: {}
+    template:
+      metadata:
+        labels:
+          component: ray-worker
+      spec:
+        containers:
+        - name: ray-worker
+          image: ml-benchmark:latest  # Update with your image registry
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: RAY_ROLE
+            value: "worker"
+          - name: RAY_HEAD_ADDRESS
+            value: "ml-benchmark-cluster-head-svc.ml-benchmark.svc.cluster.local:10001"
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          resources:
+            limits:
+              cpu: "4"
+              memory: "16Gi"
+              nvidia.com/gpu: "1"  # One GPU per worker
+            requests:
+              cpu: "2"
+              memory: "8Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+          - name: config
+            mountPath: /workspace/config.yaml
+            subPath: config.yaml
+            readOnly: true
+          - name: results
+            mountPath: /workspace/results
+        volumes:
+        - name: config
+          configMap:
+            name: benchmark-config
+        - name: results
+          persistentVolumeClaim:
+            claimName: benchmark-results-pvc
+
