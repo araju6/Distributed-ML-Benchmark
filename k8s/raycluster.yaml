@@ -28,7 +28,7 @@ spec:
       spec:
         containers:
         - name: ray-head
-          image: ml-benchmark:latest  # Update with your image registry
+          image: YOUR_DOCKERHUB_USERNAME/ml-benchmark:latest  # Replace YOUR_DOCKERHUB_USERNAME with your DockerHub username
           imagePullPolicy: IfNotPresent
           ports:
           - containerPort: 8265  # Ray dashboard
@@ -78,7 +78,7 @@ spec:
       spec:
         containers:
         - name: ray-worker
-          image: ml-benchmark:latest  # Update with your image registry
+          image: YOUR_DOCKERHUB_USERNAME/ml-benchmark:latest  # Replace YOUR_DOCKERHUB_USERNAME with your DockerHub username
           imagePullPolicy: IfNotPresent
           env:
           - name: RAY_ROLE

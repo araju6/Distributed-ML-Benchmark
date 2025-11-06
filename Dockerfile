@@ -33,8 +33,10 @@ WORKDIR /workspace
 # Copy environment file
 COPY environment.yml /workspace/
 
-# Create conda environment
-RUN conda env create -f environment.yml && \
+# Accept Conda Terms of Service and create conda environment
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
+    conda env create -f environment.yml && \
     conda clean -afy
 
 # Make conda environment available
