@@ -16,7 +16,8 @@ def run_benchmark_task(
     model_config: dict,  # Serialized model config
     warmup_iters: int,
     measured_iters: int,
-    gpu_id: int
+    gpu_id: int,
+    profiling_config: Optional[dict] = None  # Profiling config dict (enabled, output_dir, profile_iterations)
 ) -> BenchmarkMetrics:
     """Ray remote function to run a single benchmark task on a specific GPU.
     
@@ -31,6 +32,7 @@ def run_benchmark_task(
         warmup_iters: Number of warmup iterations
         measured_iters: Number of measured iterations
         gpu_id: GPU ID to use (will be isolated via CUDA_VISIBLE_DEVICES)
+        profiling_config: Optional dict with profiling settings (enabled, output_dir, profile_iterations)
     
     Returns:
         BenchmarkMetrics from the benchmark run
@@ -40,6 +42,7 @@ def run_benchmark_task(
     
     # Import here to avoid circular dependencies and ensure imports happen after GPU setup
     from benchmark.core.benchmark_runner import BenchmarkRunner
+    from benchmark.core.nsight_profiler import NsightProfiler
     from benchmark.utils.device import get_device
     from benchmark.models.resnet import ResNetWrapper
     from benchmark.models.mobilenet import MobileNetWrapper
@@ -54,6 +57,15 @@ def run_benchmark_task(
     
     # Get device (should be cuda:0 after CUDA_VISIBLE_DEVICES is set)
     device = get_device()
+    
+    # Create Nsight profiler if enabled
+    nsight_profiler = None
+    if profiling_config and profiling_config.get('enabled', False):
+        nsight_profiler = NsightProfiler(
+            output_dir=profiling_config.get('output_dir', 'results/profiles'),
+            enabled=profiling_config.get('enabled', False),
+            profile_iterations=profiling_config.get('profile_iterations', 10)
+        )
     
     # Create model wrapper
     if model_name == "resnet50":
@@ -93,7 +105,8 @@ def run_benchmark_task(
     runner = BenchmarkRunner(
         device=device,
         warmup_iters=warmup_iters,
-        measured_iters=measured_iters
+        measured_iters=measured_iters,
+        nsight_profiler=nsight_profiler
     )
     
     return runner.run_benchmark(model_wrapper, compiler, batch_size)
@@ -156,7 +169,8 @@ class RayBenchmarkRunner:
         models_config: List[dict],
         compiler_names: List[str],
         warmup_iters: int,
-        measured_iters: int
+        measured_iters: int,
+        profiling_config: Optional[dict] = None
     ) -> List[BenchmarkMetrics]:
         """Run benchmarks in parallel across available GPUs.
         
@@ -165,6 +179,7 @@ class RayBenchmarkRunner:
             compiler_names: List of compiler names to test
             warmup_iters: Number of warmup iterations
             measured_iters: Number of measured iterations
+            profiling_config: Optional dict with profiling settings (enabled, output_dir, profile_iterations)
         
         Returns:
             List of BenchmarkMetrics from all benchmark runs
@@ -216,7 +231,8 @@ class RayBenchmarkRunner:
                 model_config=task['model_config'],
                 warmup_iters=warmup_iters,
                 measured_iters=measured_iters,
-                gpu_id=gpu_id
+                gpu_id=gpu_id,
+                profiling_config=profiling_config
             )
             futures.append((future, task))
         

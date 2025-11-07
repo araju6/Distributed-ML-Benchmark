@@ -82,8 +82,7 @@ class NsightProfiler:
         
         # Build command to run profile_benchmark.py with nsys
         script_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "scripts",
+            os.path.dirname(__file__),
             "profile_benchmark.py"
         )
         

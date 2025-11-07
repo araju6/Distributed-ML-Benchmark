@@ -49,6 +49,11 @@ ray:
     num_gpus: 1               # GPUs per benchmark task
     num_cpus: 2               # CPUs per benchmark task
 
+profiling:
+  enabled: false              # Enable NVIDIA Nsight Systems profiling
+  output_dir: results/profiles  # Directory for profiling reports
+  profile_iterations: 10      # Number of iterations to profile (subset of measured iterations)
+
 output:
   format: csv
   save_path: results/

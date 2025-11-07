@@ -1,19 +1,27 @@
 import time
 import torch
 import torch.nn as nn
-from typing import List
+from typing import List, Optional
 from ..compilers.base import Compiler
 from ..models.base import ModelWrapper
 from ..utils.device import GPUMonitor
 from .metrics import MetricsCollector, BenchmarkMetrics
+from .nsight_profiler import NsightProfiler
 
 class BenchmarkRunner:
     
-    def __init__(self, device: torch.device, warmup_iters: int, measured_iters: int):
+    def __init__(
+        self,
+        device: torch.device,
+        warmup_iters: int,
+        measured_iters: int,
+        nsight_profiler: Optional[NsightProfiler] = None
+    ):
         self.device = device
         self.warmup_iters = warmup_iters
         self.measured_iters = measured_iters
         self.gpu_monitor = GPUMonitor(device)
+        self.nsight_profiler = nsight_profiler
     
     def run_benchmark(self, model_wrapper: ModelWrapper, compiler: Compiler, batch_size: int) -> BenchmarkMetrics:
         """Run a full benchmark pass for one model+compiler+batch.
@@ -90,8 +98,62 @@ class BenchmarkRunner:
         print(f"  Peak Memory: {metrics.peak_memory_mb:.2f} MB")
         print(f"  Avg Memory: {metrics.avg_memory_mb:.2f} MB")
         
+        # Run Nsight Systems profiling if enabled
+        if self.nsight_profiler and self.nsight_profiler.is_available():
+            self._run_nsight_profiling(
+                compiled_model,
+                example_input,
+                model_wrapper.get_name(),
+                compiler.get_name(),
+                batch_size
+            )
+        
         del model, compiled_model, example_input
         if self.device.type == 'cuda':
             torch.cuda.empty_cache()
         
         return metrics
+    
+    def _run_nsight_profiling(
+        self,
+        compiled_model,
+        example_input,
+        model_name: str,
+        compiler_name: str,
+        batch_size: int
+    ):
+        """Run Nsight Systems profiling on a subset of iterations.
+        
+        This runs a separate profiling pass using nsys to profile CUDA kernels.
+        Uses a subprocess approach to run the profiling script with nsys.
+        """
+        if not self.nsight_profiler or not self.nsight_profiler.is_available():
+            return
+        
+        # Determine model config for profiling script
+        model_config = {}
+        if hasattr(example_input, 'shape'):
+            if len(example_input.shape) == 4:  # Vision model: (batch, C, H, W)
+                model_config['input_shape'] = list(example_input.shape[1:])
+            elif len(example_input.shape) == 2:  # NLP model: (batch, seq_len)
+                # For NLP models, use sequence length as max_length
+                model_config['max_length'] = int(example_input.shape[1])
+        
+        profile_iterations = self.nsight_profiler.profile_iterations
+        
+        print(f"\nRunning Nsight Systems profiling ({profile_iterations} iterations)...")
+        
+        # Run profiling in subprocess
+        profile_path = self.nsight_profiler.run_profiling_subprocess(
+            model_name=model_name,
+            compiler_name=compiler_name,
+            batch_size=batch_size,
+            model_config=model_config,
+            num_iterations=profile_iterations
+        )
+        
+        if profile_path:
+            print(f"✓ Profile saved: {profile_path}")
+            print(f"  View with: nsys-ui {profile_path}")
+        else:
+            print("  Profiling completed (check for errors above)")

@@ -29,6 +29,12 @@ class RayConfig:
     resources_per_task: dict = field(default_factory=lambda: {'num_gpus': 1, 'num_cpus': 2})
 
 @dataclass
+class ProfilingConfig:
+    enabled: bool = False
+    output_dir: str = "results/profiles"
+    profile_iterations: int = 10  # Number of iterations to profile
+
+@dataclass
 class OutputConfig:
     format: str
     save_path: str
@@ -40,6 +46,7 @@ class Config:
     compilers: List[str]
     output: OutputConfig
     ray: RayConfig = field(default_factory=RayConfig)
+    profiling: ProfilingConfig = field(default_factory=ProfilingConfig)
     
     @classmethod
     def from_yaml(cls, path: str):
@@ -60,10 +67,14 @@ class Config:
         # Handle Ray config
         ray_data = data.get('ray', {})
         
+        # Handle Profiling config
+        profiling_data = data.get('profiling', {})
+        
         return cls(
             benchmark=BenchmarkConfig(**data['benchmark']),
             models=models,
             compilers=data['compilers'],
             output=OutputConfig(**data['output']),
-            ray=RayConfig(**ray_data)
+            ray=RayConfig(**ray_data),
+            profiling=ProfilingConfig(**profiling_data)
         )

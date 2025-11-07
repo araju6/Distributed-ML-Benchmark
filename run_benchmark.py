@@ -3,6 +3,7 @@ import torch
 from benchmark.core.config import Config
 from benchmark.core.benchmark_runner import BenchmarkRunner
 from benchmark.core.ray_runner import RayBenchmarkRunner
+from benchmark.core.nsight_profiler import NsightProfiler
 from benchmark.models.resnet import ResNetWrapper
 from benchmark.models.mobilenet import MobileNetWrapper
 from benchmark.models.bert import BERTWrapper
@@ -130,11 +131,21 @@ def main():
                     model_dict['max_length'] = model_cfg.max_length
                 models_config.append(model_dict)
             
+            # Prepare profiling config for Ray tasks
+            profiling_config = None
+            if cfg.profiling.enabled:
+                profiling_config = {
+                    'enabled': cfg.profiling.enabled,
+                    'output_dir': cfg.profiling.output_dir,
+                    'profile_iterations': cfg.profiling.profile_iterations
+                }
+            
             combined_results = ray_runner.run_distributed_benchmarks(
                 models_config=models_config,
                 compiler_names=cfg.compilers,
                 warmup_iters=cfg.benchmark.warmup_iterations,
-                measured_iters=cfg.benchmark.measured_iterations
+                measured_iters=cfg.benchmark.measured_iterations,
+                profiling_config=profiling_config
             )
             
             ray_runner.shutdown()
@@ -151,10 +162,20 @@ def main():
     if not use_ray:
         device = get_device()
         
+        # Create Nsight profiler if enabled
+        nsight_profiler = None
+        if cfg.profiling.enabled:
+            nsight_profiler = NsightProfiler(
+                output_dir=cfg.profiling.output_dir,
+                enabled=cfg.profiling.enabled,
+                profile_iterations=cfg.profiling.profile_iterations
+            )
+        
         runner = BenchmarkRunner(
             device=device,
             warmup_iters=cfg.benchmark.warmup_iterations,
-            measured_iters=cfg.benchmark.measured_iterations
+            measured_iters=cfg.benchmark.measured_iterations,
+            nsight_profiler=nsight_profiler
         )
         
         combined_results = []
