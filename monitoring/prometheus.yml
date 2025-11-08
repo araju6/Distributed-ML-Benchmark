@@ -1,0 +1,28 @@
+# Prometheus configuration for scraping ML Benchmark metrics
+# Use this with a Prometheus server to collect metrics
+
+global:
+  scrape_interval: 15s  # Scrape metrics every 15 seconds
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Scrape metrics from benchmark runner
+  - job_name: 'ml-benchmark'
+    static_configs:
+      # Use service name when running in docker-compose, localhost for standalone
+      - targets: ['benchmark:8000']  # Service name in docker-compose
+        labels:
+          service: 'ml-compiler-benchmark'
+          environment: 'docker'
+      # Fallback for standalone/local execution
+      - targets: ['localhost:8000']  # For local/standalone execution
+        labels:
+          service: 'ml-compiler-benchmark'
+          environment: 'local'
+    
+    # Optional: Add more targets for distributed execution
+    # - targets: ['localhost:8000', 'localhost:8001', 'localhost:8002']
+    #   labels:
+    #     service: 'ml-compiler-benchmark'
+    #     environment: 'distributed'
+
