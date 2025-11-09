@@ -180,6 +180,40 @@ Profiles are saved as `.nsys-rep` files. View with:
 nsys-ui results/profiles/<model>_<compiler>_bs<batch_size>.nsys-rep
 ```
 
+### AutoCompiler Test Mode
+
+AutoCompiler runs benchmarks across all available compilers in parallel and generates a comparison report to help you choose the best compiler for your model.
+
+**Usage:**
+```bash
+# Test ResNet-50 with batch size 32
+python run_autocompiler.py --model resnet50 --input-shape 3 224 224 --batch-size 32
+
+# Test BERT with sequence length 128
+python run_autocompiler.py --model bert_base --max-length 128 --batch-size 8
+
+# Test specific compilers only
+python run_autocompiler.py --model resnet50 --input-shape 3 224 224 --batch-size 32 \
+  --compilers pytorch_eager torchscript onnx_runtime
+
+# Sequential execution (no Ray)
+python run_autocompiler.py --model resnet50 --input-shape 3 224 224 --batch-size 32 --no-ray
+```
+
+**Features:**
+- Parallel execution across all compilers (uses Ray if available)
+- Comprehensive comparison report with recommendations
+- Best compiler recommendations for:
+  - Lowest latency
+  - Highest throughput
+  - Best memory efficiency
+  - Balanced performance
+- JSON report export for further analysis
+
+**Output:**
+- Console report with recommendations
+- JSON report saved to `results/autocompiler_report.json` (configurable)
+
 ### Analyze Results
 
 ```bash
