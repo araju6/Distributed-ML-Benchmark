@@ -35,6 +35,15 @@ class ProfilingConfig:
     profile_iterations: int = 10  # Number of iterations to profile
 
 @dataclass
+class PrometheusConfig:
+    enabled: bool = True
+    port: int = 8000
+
+@dataclass
+class MonitoringConfig:
+    prometheus: PrometheusConfig = field(default_factory=PrometheusConfig)
+
+@dataclass
 class OutputConfig:
     format: str
     save_path: str
@@ -47,6 +56,7 @@ class Config:
     output: OutputConfig
     ray: RayConfig = field(default_factory=RayConfig)
     profiling: ProfilingConfig = field(default_factory=ProfilingConfig)
+    monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
     
     @classmethod
     def from_yaml(cls, path: str):
@@ -70,11 +80,18 @@ class Config:
         # Handle Profiling config
         profiling_data = data.get('profiling', {})
         
+        # Handle Monitoring config
+        monitoring_data = data.get('monitoring', {})
+        prometheus_data = monitoring_data.get('prometheus', {})
+        
         return cls(
             benchmark=BenchmarkConfig(**data['benchmark']),
             models=models,
             compilers=data['compilers'],
             output=OutputConfig(**data['output']),
             ray=RayConfig(**ray_data),
-            profiling=ProfilingConfig(**profiling_data)
+            profiling=ProfilingConfig(**profiling_data),
+            monitoring=MonitoringConfig(
+                prometheus=PrometheusConfig(**prometheus_data)
+            )
         )

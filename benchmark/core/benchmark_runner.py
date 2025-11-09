@@ -7,6 +7,7 @@ from ..models.base import ModelWrapper
 from ..utils.device import GPUMonitor
 from .metrics import MetricsCollector, BenchmarkMetrics
 from .nsight_profiler import NsightProfiler
+from .prometheus_metrics import PrometheusMetricsExporter
 
 class BenchmarkRunner:
     
@@ -15,13 +16,18 @@ class BenchmarkRunner:
         device: torch.device,
         warmup_iters: int,
         measured_iters: int,
-        nsight_profiler: Optional[NsightProfiler] = None
+        nsight_profiler: Optional[NsightProfiler] = None,
+        prometheus_exporter: Optional[PrometheusMetricsExporter] = None
     ):
         self.device = device
         self.warmup_iters = warmup_iters
         self.measured_iters = measured_iters
         self.gpu_monitor = GPUMonitor(device)
         self.nsight_profiler = nsight_profiler
+        self.prometheus_exporter = prometheus_exporter
+        
+        # Get GPU ID for metrics labeling
+        self.gpu_id = device.index if device.type == 'cuda' and device.index is not None else 0
     
     def run_benchmark(self, model_wrapper: ModelWrapper, compiler: Compiler, batch_size: int) -> BenchmarkMetrics:
         """Run a full benchmark pass for one model+compiler+batch.
@@ -49,6 +55,14 @@ class BenchmarkRunner:
         compile_time = time.time() - compile_start_time
         print(f"Compilation time: {compile_time:.3f}s")
         
+        # Record compilation time to Prometheus
+        if self.prometheus_exporter and compile_time > 0 and compiler.get_name() != "pytorch_eager":
+            self.prometheus_exporter.record_compile_time(
+                compile_time,
+                compiler.get_name(),
+                model_wrapper.get_name()
+            )
+        
         self.gpu_monitor.reset_peak_memory()
         
         print(f"Warming up ({self.warmup_iters} iterations)...")
@@ -69,6 +83,16 @@ class BenchmarkRunner:
                 self.gpu_monitor.synchronize()
                 latency = time.time() - t0
                 iter_latencies.append(latency)
+                
+                # Record latency to Prometheus
+                if self.prometheus_exporter:
+                    self.prometheus_exporter.record_latency(
+                        latency,
+                        compiler.get_name(),
+                        model_wrapper.get_name(),
+                        batch_size,
+                        self.gpu_id
+                    )
                 
                 if (i + 1) % 25 == 0:
                     print(f"  Progress: {i+1}/{self.measured_iters}")
@@ -97,6 +121,45 @@ class BenchmarkRunner:
         print(f"  Throughput: {metrics.throughput:.2f} samples/sec")
         print(f"  Peak Memory: {metrics.peak_memory_mb:.2f} MB")
         print(f"  Avg Memory: {metrics.avg_memory_mb:.2f} MB")
+        
+        # Record metrics to Prometheus
+        if self.prometheus_exporter:
+            # Record throughput
+            self.prometheus_exporter.record_throughput(
+                metrics.throughput,
+                compiler.get_name(),
+                model_wrapper.get_name(),
+                batch_size,
+                self.gpu_id
+            )
+            
+            # Record GPU memory
+            self.prometheus_exporter.record_gpu_memory(
+                metrics.peak_memory_mb,
+                self.gpu_id,
+                'peak'
+            )
+            self.prometheus_exporter.record_gpu_memory(
+                metrics.avg_memory_mb,
+                self.gpu_id,
+                'avg'
+            )
+            
+            # Record benchmark run completion
+            self.prometheus_exporter.record_benchmark_run(
+                compiler.get_name(),
+                model_wrapper.get_name(),
+                batch_size,
+                'success'
+            )
+            
+            # Record iterations
+            self.prometheus_exporter.record_iterations(
+                self.measured_iters,
+                compiler.get_name(),
+                model_wrapper.get_name(),
+                batch_size
+            )
         
         # Run Nsight Systems profiling if enabled
         if self.nsight_profiler and self.nsight_profiler.is_available():

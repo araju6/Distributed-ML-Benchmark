@@ -4,6 +4,7 @@ from benchmark.core.config import Config
 from benchmark.core.benchmark_runner import BenchmarkRunner
 from benchmark.core.ray_runner import RayBenchmarkRunner
 from benchmark.core.nsight_profiler import NsightProfiler
+from benchmark.core.prometheus_metrics import PrometheusMetricsExporter
 from benchmark.models.resnet import ResNetWrapper
 from benchmark.models.mobilenet import MobileNetWrapper
 from benchmark.models.bert import BERTWrapper
@@ -110,6 +111,14 @@ def main():
     print(f"Measured iterations: {cfg.benchmark.measured_iterations}")
     print("="*70)
     
+    # Initialize Prometheus metrics exporter if enabled
+    prometheus_exporter = None
+    if cfg.monitoring.prometheus.enabled:
+        prometheus_exporter = PrometheusMetricsExporter(
+            port=cfg.monitoring.prometheus.port,
+            enabled=cfg.monitoring.prometheus.enabled
+        )
+    
     if use_ray:
         try:
             ray_runner = RayBenchmarkRunner(
@@ -175,7 +184,8 @@ def main():
             device=device,
             warmup_iters=cfg.benchmark.warmup_iterations,
             measured_iters=cfg.benchmark.measured_iterations,
-            nsight_profiler=nsight_profiler
+            nsight_profiler=nsight_profiler,
+            prometheus_exporter=prometheus_exporter
         )
         
         combined_results = []

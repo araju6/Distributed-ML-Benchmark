@@ -54,6 +54,11 @@ profiling:
   output_dir: results/profiles  # Directory for profiling reports
   profile_iterations: 10      # Number of iterations to profile (subset of measured iterations)
 
+monitoring:
+  prometheus:
+    enabled: true             # Enable Prometheus metrics export
+    port: 8000                # HTTP port for metrics endpoint
+
 output:
   format: csv
   save_path: results/

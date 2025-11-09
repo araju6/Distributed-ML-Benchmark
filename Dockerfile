@@ -19,6 +19,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install NVIDIA Nsight Systems for profiling
+# Note: nsys is typically installed with CUDA toolkit, but we install it explicitly
+# for containerized environments where it might not be available
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nsight-systems \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Miniconda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
     bash /tmp/miniconda.sh -b -p /opt/conda && \

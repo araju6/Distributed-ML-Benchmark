@@ -80,6 +80,10 @@ spec:
         - name: ray-worker
           image: YOUR_DOCKERHUB_USERNAME/ml-benchmark:latest  # Replace YOUR_DOCKERHUB_USERNAME with your DockerHub username
           imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 8000  # Prometheus metrics endpoint
+            name: metrics
+            protocol: TCP
           env:
           - name: RAY_ROLE
             value: "worker"

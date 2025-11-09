@@ -62,6 +62,24 @@ kubectl apply -f "$K8S_DIR/raycluster.yaml"
 echo "✓ RayCluster deployed"
 echo ""
 
+# Step 5: Deploy Metrics Service
+echo "Step 5: Deploying Metrics Service..."
+kubectl apply -f "$K8S_DIR/service-metrics.yaml"
+echo "✓ Metrics Service deployed"
+echo ""
+
+# Step 6: Deploy ServiceMonitor (if Prometheus Operator is installed)
+echo "Step 6: Deploying ServiceMonitor for Prometheus..."
+if kubectl get crd servicemonitors.monitoring.coreos.com &> /dev/null; then
+    kubectl apply -f "$K8S_DIR/servicemonitor.yaml"
+    echo "✓ ServiceMonitor deployed (Prometheus Operator detected)"
+else
+    echo "⚠ ServiceMonitor not deployed (Prometheus Operator not detected)"
+    echo "  If using Prometheus Operator, install it first, then run:"
+    echo "  kubectl apply -f $K8S_DIR/servicemonitor.yaml"
+fi
+echo ""
+
 # Wait for RayCluster to be ready
 echo "Waiting for RayCluster to be ready..."
 echo "This may take a few minutes while pods are being created..."

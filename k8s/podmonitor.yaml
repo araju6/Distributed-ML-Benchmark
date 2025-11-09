@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ml-benchmark-pods
+  namespace: ml-benchmark
+  labels:
+    app: ml-compiler-benchmark
+spec:
+  selector:
+    matchLabels:
+      app: ml-compiler-benchmark
+      job-type: benchmark
+  podMetricsEndpoints:
+  - port: metrics
+    interval: 15s
+    path: /metrics
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - ml-benchmark
+---
+# Note: This PodMonitor scrapes pods directly by labels
+# Use this if ServiceMonitor doesn't work for your setup
+# Make sure RayJob pods have the labels: app=ml-compiler-benchmark, job-type=benchmark
+

@@ -57,6 +57,16 @@ data:
         num_gpus: 1                 # GPUs per benchmark task
         num_cpus: 2                 # CPUs per benchmark task
     
+    profiling:
+      enabled: false                # Enable NVIDIA Nsight Systems profiling
+      output_dir: /workspace/results/profiles  # Directory for profiling reports
+      profile_iterations: 10        # Number of iterations to profile (subset of measured iterations)
+    
+    monitoring:
+      prometheus:
+        enabled: true                # Enable Prometheus metrics export
+        port: 8000                  # HTTP port for metrics endpoint
+    
     output:
       format: csv
       save_path: /workspace/results

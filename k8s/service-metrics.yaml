@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: benchmark-metrics
+  namespace: ml-benchmark
+  labels:
+    app: ml-compiler-benchmark
+    component: metrics
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  selector:
+    app: ml-compiler-benchmark
+    job-type: benchmark
+  # Note: This service will target RayJob pods when they are running
+  # RayJob pods are created dynamically, so the service will discover them via labels
+

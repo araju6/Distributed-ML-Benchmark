@@ -42,10 +42,14 @@ echo "Environment Check:"
 echo "  Python: $($ENV_PYTHON --version 2>&1)"
 $ENV_PYTHON -c "import torch; print('  PyTorch:', torch.__version__); print('  CUDA available:', torch.cuda.is_available())" 2>/dev/null || echo "  ⚠ PyTorch not available"
 
-# Check GPU status
+# Check GPU status (if check_gpu.py exists)
 echo ""
 echo "GPU Status:"
-$ENV_PYTHON check_gpu.py 2>&1 | grep -E "(CUDA available|Using GPU|GPU not detected)" | head -3 || echo "  (Run python check_gpu.py for full status)"
+if [ -f "check_gpu.py" ]; then
+    $ENV_PYTHON check_gpu.py 2>&1 | grep -E "(CUDA available|Using GPU|GPU not detected)" | head -3 || echo "  (Run python check_gpu.py for full status)"
+else
+    $ENV_PYTHON -c "import torch; print('  CUDA available:', torch.cuda.is_available()); print('  Using GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'N/A')" 2>/dev/null || echo "  (GPU check unavailable)"
+fi
 
 # Change to project directory
 cd "$(dirname "${BASH_SOURCE[0]}")"

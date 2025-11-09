@@ -1,22 +1,24 @@
-# CS498MLSysProject
+# Distributed ML Benchmark
 
 ML Compiler Benchmark Framework
 
 ## Setup
 
-### First Time (One-time installation)
+### Option 1: Local Installation (Conda)
+
+**First Time (One-time installation):**
 
 ```bash
-cd ~/CS498MLSysProject
+cd /path/to/Distributed-ML-Bench
 ./setup.sh
 ```
 
 This installs conda and creates the environment (~5-15 minutes).
 
-### Every Session
+**Every Session:**
 
 ```bash
-cd ~/CS498MLSysProject
+cd /path/to/Distributed-ML-Bench
 source startup.sh
 ```
 
@@ -24,6 +26,68 @@ Or manually:
 ```bash
 conda activate ml-benchmark
 ```
+
+### Option 2: Docker Containerization
+
+**Build the Docker image:**
+
+```bash
+./scripts/docker-build.sh
+```
+
+**Run with Docker:**
+
+```bash
+# Sequential execution
+docker run --rm --gpus all \
+  -v $(pwd)/config.yaml:/workspace/config.yaml:ro \
+  -v $(pwd)/results:/workspace/results \
+  ml-benchmark:latest
+
+# Distributed execution with Ray
+docker run --rm --gpus all \
+  -v $(pwd)/config.yaml:/workspace/config.yaml:ro \
+  -v $(pwd)/results:/workspace/results \
+  ml-benchmark:latest \
+  python /workspace/run_benchmark.py --distributed
+```
+
+**Or use Docker Compose:**
+
+```bash
+# Single container
+docker-compose up
+
+# Multi-container Ray cluster
+docker-compose -f docker-compose.ray.yml up
+
+# Full stack (Ray + Monitoring)
+docker-compose -f docker-compose.full.yml up
+```
+
+See `docker/README.md` for detailed Docker instructions.
+
+### Option 3: Kubernetes Deployment (Production)
+
+**Prerequisites:**
+- Kubernetes cluster with GPU nodes
+- KubeRay operator installed
+- NVIDIA GPU device plugin
+
+**Deploy to Kubernetes:**
+
+```bash
+# Deploy RayCluster and all resources
+./scripts/k8s-deploy.sh
+
+# Submit benchmark job
+./scripts/k8s-submit-job.sh
+
+# Access Ray dashboard
+kubectl port-forward svc/ml-benchmark-cluster-head-svc 8265:8265 -n ml-benchmark
+```
+
+See `k8s/README.md` for detailed Kubernetes deployment instructions.
 
 ## Running
 
@@ -61,6 +125,47 @@ Ray enables parallel execution across multiple GPUs on a single node. Each GPU r
 - Set `ray.enabled: true` in `config.yaml` or use `--distributed` flag
 - Configure `ray.num_gpus` to specify GPU count (auto-detect if null)
 - Set `ray.head_address` to connect to existing cluster (for K8s)
+
+### Prometheus Metrics Export
+
+Prometheus metrics are automatically exported when enabled (default: enabled):
+
+```yaml
+# In config.yaml
+monitoring:
+  prometheus:
+    enabled: true
+    port: 8000  # HTTP port for metrics endpoint
+```
+
+Access metrics at: `http://localhost:8000/metrics`
+
+**Available Metrics:**
+- `benchmark_latency_seconds` - Inference latency histogram (per iteration)
+- `benchmark_throughput_samples_per_sec` - Throughput gauge
+- `benchmark_gpu_memory_mb` - GPU memory usage (peak and avg)
+- `benchmark_compile_time_seconds` - Compilation time histogram
+- `benchmark_runs_total` - Counter of completed benchmark runs
+- `benchmark_iterations_total` - Counter of total iterations executed
+
+All metrics include labels: `compiler`, `model`, `batch_size`, `gpu_id`
+
+### NVIDIA Nsight Systems Profiling
+
+Enable kernel-level CUDA profiling with Nsight Systems:
+
+```yaml
+# In config.yaml
+profiling:
+  enabled: true
+  output_dir: results/profiles
+  profile_iterations: 10  # Number of iterations to profile
+```
+
+Profiles are saved as `.nsys-rep` files. View with:
+```bash
+nsys-ui results/profiles/<model>_<compiler>_bs<batch_size>.nsys-rep
+```
 
 ### Analyze Results
 

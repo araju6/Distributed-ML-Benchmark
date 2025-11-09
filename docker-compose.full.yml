@@ -1,0 +1,170 @@
+version: '3.8'
+
+# Full stack docker-compose: Ray Cluster + Benchmark + Monitoring
+# Usage: docker-compose -f docker-compose.full.yml up
+# 
+# This includes:
+# - Ray head node (orchestration)
+# - Ray worker nodes (2 workers by default, adjust as needed)
+# - Benchmark runner (executes distributed benchmarks)
+# - Prometheus (metrics collection)
+# - Grafana (metrics visualization)
+#
+# All services are on the same network, so Prometheus can automatically
+# scrape metrics from the benchmark container.
+
+services:
+  # Ray head node
+  ray-head:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: ray-head
+    environment:
+      - RAY_ROLE=head
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8265:8265"  # Ray dashboard
+      - "10001:10001"  # Ray client
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0  # Head doesn't need GPU
+              capabilities: [gpu]
+    command: ["ray", "start", "--head", "--block"]
+    networks:
+      - benchmark-network
+
+  # Ray worker nodes (adjust count based on GPUs)
+  ray-worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: ray-worker-1
+    environment:
+      - RAY_ROLE=worker
+      - RAY_HEAD_ADDRESS=ray-head:10001
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - ray-head
+    networks:
+      - benchmark-network
+
+  ray-worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: ray-worker-2
+    environment:
+      - RAY_ROLE=worker
+      - RAY_HEAD_ADDRESS=ray-head:10001
+      - CUDA_VISIBLE_DEVICES=1
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - ray-head
+    networks:
+      - benchmark-network
+
+  # Benchmark runner (executes benchmarks)
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ml-benchmark:latest
+    container_name: benchmark-runner
+    environment:
+      - RAY_HEAD_ADDRESS=ray-head:10001
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./config.yaml:/workspace/config.yaml:ro
+      - ./results:/workspace/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 0  # Benchmark runner doesn't need GPU directly
+              capabilities: [gpu]
+    command: ["python", "/workspace/run_benchmark.py", "--distributed"]
+    depends_on:
+      - ray-head
+      - ray-worker-1
+      - ray-worker-2
+    networks:
+      - benchmark-network
+    # Expose metrics port for Prometheus
+    ports:
+      - "8000:8000"  # Prometheus metrics endpoint
+
+  # Prometheus metrics server
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - benchmark-network
+    depends_on:
+      - benchmark
+
+  # Grafana visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - benchmark-network
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  benchmark-network:
+    driver: bridge

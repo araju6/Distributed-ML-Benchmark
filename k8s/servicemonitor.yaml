@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ml-benchmark-metrics
+  namespace: ml-benchmark
+  labels:
+    app: ml-compiler-benchmark
+spec:
+  selector:
+    matchLabels:
+      app: ml-compiler-benchmark
+      component: metrics
+  endpoints:
+  - port: metrics
+    interval: 15s
+    path: /metrics
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - ml-benchmark
+---
+# Alternative: PodMonitor (if you prefer to scrape pods directly)
+# Uncomment and use this if ServiceMonitor doesn't work for your setup
+# apiVersion: monitoring.coreos.com/v1
+# kind: PodMonitor
+# metadata:
+#   name: ml-benchmark-pods
+#   namespace: ml-benchmark
+#   labels:
+#     app: ml-compiler-benchmark
+# spec:
+#   selector:
+#     matchLabels:
+#       app: ml-compiler-benchmark
+#       job-type: benchmark
+#   podMetricsEndpoints:
+#   - port: metrics
+#     interval: 15s
+#     path: /metrics
+#     scrapeTimeout: 10s
+

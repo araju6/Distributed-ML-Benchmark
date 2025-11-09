@@ -70,6 +70,9 @@ kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/pvc.yaml
 kubectl apply -f k8s/raycluster.yaml
+kubectl apply -f k8s/service-metrics.yaml
+# Optional: If using Prometheus Operator
+kubectl apply -f k8s/servicemonitor.yaml
 ```
 
 ### Step 3: Verify Deployment
@@ -144,6 +147,54 @@ kubectl apply -f k8s/raycluster.yaml
 ```
 
 ## Monitoring
+
+### Prometheus Metrics
+
+The benchmark runner exposes Prometheus metrics on port 8000. Metrics are automatically collected when enabled in the ConfigMap.
+
+**Deploy Metrics Service and ServiceMonitor:**
+
+```bash
+# Deploy metrics service
+kubectl apply -f k8s/service-metrics.yaml
+
+# Deploy ServiceMonitor (requires Prometheus Operator)
+kubectl apply -f k8s/servicemonitor.yaml
+```
+
+**Verify metrics endpoint:**
+
+```bash
+# Port forward to a running pod
+kubectl port-forward <pod-name> 8000:8000 -n ml-benchmark
+
+# Check metrics
+curl http://localhost:8000/metrics
+```
+
+**Prometheus Configuration:**
+
+If using Prometheus Operator, the ServiceMonitor will automatically configure scraping. Otherwise, add to your Prometheus config:
+
+```yaml
+scrape_configs:
+  - job_name: 'ml-benchmark'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - ml-benchmark
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: ml-compiler-benchmark
+      - source_labels: [__meta_kubernetes_pod_label_job_type]
+        action: keep
+        regex: benchmark
+      - source_labels: [__meta_kubernetes_pod_ip]
+        target_label: __address__
+        replacement: ${1}:8000
+```
 
 ### Ray Dashboard
 - Access via port-forward: `kubectl port-forward svc/ml-benchmark-cluster-head-svc 8265:8265 -n ml-benchmark`
@@ -270,6 +321,8 @@ kubectl delete namespace ml-benchmark
 
 # Or delete individually
 kubectl delete -f k8s/rayjob.yaml
+kubectl delete -f k8s/servicemonitor.yaml  # If deployed
+kubectl delete -f k8s/service-metrics.yaml
 kubectl delete -f k8s/raycluster.yaml
 kubectl delete -f k8s/pvc.yaml
 kubectl delete -f k8s/configmap.yaml
@@ -318,20 +371,52 @@ Update `raycluster.yaml`:
 - Verify node selectors if needed
 - Check resource quotas per namespace
 
+## Profiling Support
+
+NVIDIA Nsight Systems profiling is now supported in the container image. To enable profiling:
+
+1. **Update ConfigMap** to enable profiling:
+   ```bash
+   kubectl edit configmap benchmark-config -n ml-benchmark
+   ```
+   
+   Set:
+   ```yaml
+   profiling:
+     enabled: true
+     output_dir: /workspace/results/profiles
+     profile_iterations: 10
+   ```
+
+2. **Profiles are saved** to the PVC at `/workspace/results/profiles/`
+
+3. **Access profiles**:
+   ```bash
+   # Copy profile from pod
+   kubectl cp ml-benchmark/<pod-name>:/workspace/results/profiles/<profile-name>.nsys-rep ./results/
+   
+   # View with nsys-ui
+   nsys-ui results/<profile-name>.nsys-rep
+   ```
+
+**Note**: Profiling adds overhead and increases benchmark time. Use for detailed performance analysis, not routine benchmarking.
+
 ## Best Practices
 
 1. **Resource Management**: Set appropriate CPU/memory requests and limits
 2. **GPU Isolation**: One GPU per worker pod prevents conflicts
 3. **ConfigMap Updates**: Update ConfigMap without rebuilding images
 4. **PVC Storage**: Use ReadWriteMany for shared results access
-5. **Monitoring**: Set up Prometheus/Grafana for production monitoring
-6. **Logging**: Use centralized logging (e.g., ELK stack) for distributed debugging
+5. **Monitoring**: Set up Prometheus/Grafana for production monitoring (see Monitoring section above)
+6. **Profiling**: Enable profiling only when needed for detailed analysis
+7. **Logging**: Use centralized logging (e.g., ELK stack) for distributed debugging
 
 ## Next Steps
 
-- Integrate Prometheus metrics scraping from Ray pods
+- ✅ Prometheus metrics scraping configured (see Monitoring section)
 - Set up Grafana dashboards for monitoring
 - Implement auto-scaling based on workload
 - Add health checks and liveness probes
 - Configure resource quotas and limits
+- ✅ Profiling support enabled (see Profiling Support section)
 
