@@ -178,6 +178,9 @@ Examples:
     # Save report
     autocompiler.save_report(report, args.output)
     
+    # Cleanup
+    autocompiler.cleanup()
+    
     print(f"\n✓ AutoCompiler test complete!")
     print(f"  Report saved to: {args.output}")
     print(f"  Use the recommendations above to choose the best compiler for your use case.\n")

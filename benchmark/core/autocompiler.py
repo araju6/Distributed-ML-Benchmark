@@ -104,6 +104,20 @@ class AutoCompiler:
         else:
             self.ray_available = False
     
+    def cleanup(self):
+        """Clean up resources (shutdown Ray if initialized)."""
+        if self.ray_available and self.use_ray:
+            try:
+                import ray
+                if ray.is_initialized():
+                    ray.shutdown()
+            except Exception:
+                pass  # Ignore errors during cleanup
+    
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        self.cleanup()
+    
     def get_available_compilers(self) -> List[Tuple[str, str]]:
         """Get list of available compiler names and display names."""
         return [(name, display) for name, display, _ in self.AVAILABLE_COMPILERS]
