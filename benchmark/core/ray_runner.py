@@ -17,7 +17,8 @@ def run_benchmark_task(
     warmup_iters: int,
     measured_iters: int,
     gpu_id: int,
-    profiling_config: Optional[dict] = None  # Profiling config dict (enabled, output_dir, profile_iterations)
+    profiling_config: Optional[dict] = None,  # Profiling config dict (enabled, output_dir, profile_iterations)
+    prometheus_config: Optional[dict] = None  # Prometheus config dict (enabled, port)
 ) -> BenchmarkMetrics:
     """Ray remote function to run a single benchmark task on a specific GPU.
     
@@ -43,6 +44,7 @@ def run_benchmark_task(
     # Import here to avoid circular dependencies and ensure imports happen after GPU setup
     from benchmark.core.benchmark_runner import BenchmarkRunner
     from benchmark.core.nsight_profiler import NsightProfiler
+    from benchmark.core.prometheus_metrics import PrometheusMetricsExporter
     from benchmark.utils.device import get_device
     from benchmark.models.resnet import ResNetWrapper
     from benchmark.models.mobilenet import MobileNetWrapper
@@ -65,6 +67,20 @@ def run_benchmark_task(
             output_dir=profiling_config.get('output_dir', 'results/profiles'),
             enabled=profiling_config.get('enabled', False),
             profile_iterations=profiling_config.get('profile_iterations', 10)
+        )
+    
+    # Create Prometheus metrics exporter if enabled
+    # Note: Each Ray task runs in its own process, so each will start its own HTTP server
+    # This means multiple metrics endpoints (one per GPU/task). For production, consider
+    # aggregating metrics or using a service mesh.
+    prometheus_exporter = None
+    if prometheus_config and prometheus_config.get('enabled', False):
+        # Use a unique port per GPU to avoid conflicts (base port + gpu_id)
+        base_port = prometheus_config.get('port', 8000)
+        task_port = base_port + gpu_id
+        prometheus_exporter = PrometheusMetricsExporter(
+            port=task_port,
+            enabled=prometheus_config.get('enabled', False)
         )
     
     # Create model wrapper
@@ -106,7 +122,8 @@ def run_benchmark_task(
         device=device,
         warmup_iters=warmup_iters,
         measured_iters=measured_iters,
-        nsight_profiler=nsight_profiler
+        nsight_profiler=nsight_profiler,
+        prometheus_exporter=prometheus_exporter
     )
     
     return runner.run_benchmark(model_wrapper, compiler, batch_size)
@@ -170,7 +187,8 @@ class RayBenchmarkRunner:
         compiler_names: List[str],
         warmup_iters: int,
         measured_iters: int,
-        profiling_config: Optional[dict] = None
+        profiling_config: Optional[dict] = None,
+        prometheus_config: Optional[dict] = None
     ) -> List[BenchmarkMetrics]:
         """Run benchmarks in parallel across available GPUs.
         
@@ -232,7 +250,8 @@ class RayBenchmarkRunner:
                 warmup_iters=warmup_iters,
                 measured_iters=measured_iters,
                 gpu_id=gpu_id,
-                profiling_config=profiling_config
+                profiling_config=profiling_config,
+                prometheus_config=prometheus_config
             )
             futures.append((future, task))
         

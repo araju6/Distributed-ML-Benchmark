@@ -149,12 +149,21 @@ def main():
                     'profile_iterations': cfg.profiling.profile_iterations
                 }
             
+            # Prepare Prometheus config for Ray tasks
+            prometheus_config = None
+            if cfg.monitoring.prometheus.enabled:
+                prometheus_config = {
+                    'enabled': cfg.monitoring.prometheus.enabled,
+                    'port': cfg.monitoring.prometheus.port
+                }
+            
             combined_results = ray_runner.run_distributed_benchmarks(
                 models_config=models_config,
                 compiler_names=cfg.compilers,
                 warmup_iters=cfg.benchmark.warmup_iterations,
                 measured_iters=cfg.benchmark.measured_iterations,
-                profiling_config=profiling_config
+                profiling_config=profiling_config,
+                prometheus_config=prometheus_config
             )
             
             ray_runner.shutdown()

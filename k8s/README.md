@@ -50,11 +50,14 @@ kubectl get nodes -o json | jq '.items[] | {name: .metadata.name, gpu: .status.c
 # Build image
 ./scripts/docker-build.sh
 
-# Tag for your registry (example)
-docker tag ml-benchmark:latest your-registry.io/ml-benchmark:v1.0
+# Tag for Docker Hub
+docker tag ml-benchmark:latest 5ifty6ix56/ml-benchmark:latest
 
-# Push to registry
-docker push your-registry.io/ml-benchmark:v1.0
+# Push to Docker Hub
+docker push 5ifty6ix56/ml-benchmark:latest
+
+# Or use the build script with push:
+DOCKERHUB_USERNAME=5ifty6ix56 ./scripts/docker-build.sh latest --push
 
 # Update image in k8s/raycluster.yaml and k8s/rayjob.yaml
 ```

@@ -80,15 +80,8 @@ class NsightProfiler:
         profile_name = f"{model_name}_{compiler_name}_bs{batch_size}"
         profile_file = self.get_profile_path(profile_name)
         
-        # Build command to run profile_benchmark.py with nsys
-        script_path = os.path.join(
-            os.path.dirname(__file__),
-            "profile_benchmark.py"
-        )
-        
-        if not os.path.exists(script_path):
-            print(f"Warning: Profile script not found: {script_path}")
-            return None
+        # Use Python module execution for better reliability across different environments
+        # This works regardless of working directory and is the recommended approach
         
         # Build arguments for profile script
         profile_args = [
@@ -104,6 +97,7 @@ class NsightProfiler:
             profile_args.extend(["--max-length", str(model_config["max_length"])])
         
         # Build nsys command
+        # Use module execution for better reliability across different environments
         nsys_cmd = [
             self.nsys_path,
             "profile",
@@ -112,7 +106,7 @@ class NsightProfiler:
             "--force-overwrite=true",
             "--cuda-memory-usage=true",
             "--gpu-metrics-device=all",
-            "python", script_path
+            "python", "-m", "benchmark.core.profile_benchmark"
         ] + profile_args
         
         try:

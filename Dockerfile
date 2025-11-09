@@ -22,9 +22,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install NVIDIA Nsight Systems for profiling
 # Note: nsys is typically installed with CUDA toolkit, but we install it explicitly
 # for containerized environments where it might not be available
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    nsight-systems \
-    && rm -rf /var/lib/apt/lists/*
+# Try to install latest available version, or skip if not available (for non-GPU builds)
+RUN apt-get update && \
+    (apt-get install -y --no-install-recommends nsight-systems-2025.3.2 2>/dev/null || \
+     apt-get install -y --no-install-recommends nsight-systems-2025.1.3 2>/dev/null || \
+     apt-get install -y --no-install-recommends nsight-systems-2024.6.2 2>/dev/null || \
+     echo "Warning: Nsight Systems not available, profiling will be disabled") && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Miniconda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
@@ -41,9 +45,28 @@ WORKDIR /workspace
 COPY environment.yml /workspace/
 
 # Accept Conda Terms of Service and create conda environment
-RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
-    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
-    conda env create -f environment.yml && \
+# Configure conda for better network reliability
+RUN conda config --set remote_connect_timeout_secs 60.0 && \
+    conda config --set remote_read_timeout_secs 120.0 && \
+    conda config --set remote_max_retries 5 && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
+# Create conda environment with retry logic for network issues
+RUN set +e && \
+    SUCCESS=0 && \
+    for i in 1 2 3; do \
+        echo "Attempt $i to create conda environment..." && \
+        conda env create -f environment.yml && \
+        if [ $? -eq 0 ]; then SUCCESS=1; break; fi && \
+        echo "Attempt $i failed, waiting 10 seconds before retry..." && \
+        sleep 10; \
+    done && \
+    set -e && \
+    if [ $SUCCESS -eq 0 ]; then \
+        echo "ERROR: Failed to create conda environment after 3 attempts" && \
+        exit 1; \
+    fi && \
     conda clean -afy
 
 # Make conda environment available
@@ -53,6 +76,7 @@ ENV CONDA_DEFAULT_ENV=ml-benchmark
 # Copy benchmark code
 COPY benchmark/ /workspace/benchmark/
 COPY run_benchmark.py /workspace/
+COPY run_autocompiler.py /workspace/
 COPY analyze_results.py /workspace/
 COPY config.yaml /workspace/
 

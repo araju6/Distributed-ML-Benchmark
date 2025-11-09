@@ -24,11 +24,11 @@ spec:
     template:
       metadata:
         labels:
-          component: ray-head
+          ray.io/component: ray-head
       spec:
         containers:
         - name: ray-head
-          image: YOUR_DOCKERHUB_USERNAME/ml-benchmark:latest  # Replace YOUR_DOCKERHUB_USERNAME with your DockerHub username
+          image: 5ifty6ix56/ml-benchmark:latest
           imagePullPolicy: IfNotPresent
           ports:
           - containerPort: 8265  # Ray dashboard
@@ -74,11 +74,11 @@ spec:
     template:
       metadata:
         labels:
-          component: ray-worker
+          ray.io/component: ray-worker
       spec:
         containers:
         - name: ray-worker
-          image: YOUR_DOCKERHUB_USERNAME/ml-benchmark:latest  # Replace YOUR_DOCKERHUB_USERNAME with your DockerHub username
+          image: 5ifty6ix56/ml-benchmark:latest
           imagePullPolicy: IfNotPresent
           ports:
           - containerPort: 8000  # Prometheus metrics endpoint
