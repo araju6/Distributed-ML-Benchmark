@@ -51,7 +51,16 @@ monitoring:
 
 ## Grafana Dashboards
 
-See `grafana/dashboards/` for pre-configured dashboards (to be created in Phase 2.2).
+Pre-configured dashboard is available at `grafana/dashboards/benchmark_dashboard.json`.
+
+The dashboard includes:
+- **Inference Latency (p95)** - Latency percentiles by compiler/model
+- **Throughput** - Samples per second
+- **GPU Memory Usage** - Peak and average memory
+- **Compilation Time** - Compiler optimization time
+- **Benchmark Statistics** - Run counts and iteration rates
+
+The dashboard is automatically provisioned when using Docker Compose.
 
 ## Kubernetes Integration
 
@@ -74,9 +83,24 @@ spec:
     path: /metrics
 ```
 
-## Next Steps
+## Quick Start
 
-1. Set up Prometheus server (Docker Compose or standalone)
-2. Configure Grafana to use Prometheus as data source
-3. Import dashboard from `grafana/dashboards/benchmark_dashboard.json` (when created)
+1. **Start monitoring stack:**
+   ```bash
+   cd monitoring
+   docker-compose up -d
+   ```
+
+2. **Run benchmark with metrics enabled:**
+   ```bash
+   # Ensure monitoring.prometheus.enabled: true in config.yaml
+   python run_benchmark.py
+   ```
+
+3. **View dashboards:**
+   - Prometheus: http://localhost:9090
+   - Grafana: http://localhost:3000 (admin/admin)
+   - Metrics endpoint: http://localhost:8000/metrics
+
+The Grafana dashboard will be automatically available after starting the stack.
 

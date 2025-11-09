@@ -150,6 +150,19 @@ Access metrics at: `http://localhost:8000/metrics`
 
 All metrics include labels: `compiler`, `model`, `batch_size`, `gpu_id`
 
+**Grafana Dashboard:**
+A pre-configured Grafana dashboard is available for visualization:
+```bash
+# Start monitoring stack (Prometheus + Grafana)
+cd monitoring
+docker-compose up -d
+
+# Access Grafana: http://localhost:3000 (admin/admin)
+# Dashboard: "ML Compiler Benchmark Dashboard"
+```
+
+See `monitoring/README.md` for detailed setup instructions.
+
 ### NVIDIA Nsight Systems Profiling
 
 Enable kernel-level CUDA profiling with Nsight Systems:
