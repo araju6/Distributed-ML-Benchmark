@@ -1,4 +1,4 @@
-# Distributed ML Benchmark
+# Final Project - Distributed ML Benchmark
 
 ML Compiler Benchmark Framework
 
