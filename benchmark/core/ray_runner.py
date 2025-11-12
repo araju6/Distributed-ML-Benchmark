@@ -257,6 +257,7 @@ class RayBenchmarkRunner:
         
         # Collect results as they complete
         results = []
+        failures = []
         for i, (future, task) in enumerate(futures):
             model_name = task['model_name']
             compiler_name = task['compiler_name']
@@ -266,8 +267,30 @@ class RayBenchmarkRunner:
                 result = ray.get(future)
                 results.append(result)
             except Exception as e:
-                print(f"Error running benchmark for {model_name} | {compiler_name} | batch_size={batch_size}: {e}")
+                error_msg = f"Error running benchmark for {model_name} | {compiler_name} | batch_size={batch_size}: {e}"
+                print(f"✗ {error_msg}")
+                failures.append({
+                    'model_name': model_name,
+                    'compiler_name': compiler_name,
+                    'batch_size': batch_size,
+                    'error': str(e)
+                })
                 # Continue with other tasks
+        
+        # Report summary of failures if any
+        if failures:
+            print(f"\n{'='*70}")
+            print(f"BENCHMARK SUMMARY")
+            print(f"{'='*70}")
+            print(f"Total benchmarks: {len(tasks)}")
+            print(f"Successful: {len(results)}")
+            print(f"Failed: {len(failures)}")
+            if len(failures) > 0:
+                print(f"\nFailed benchmarks:")
+                for failure in failures:
+                    print(f"  - {failure['model_name']} | {failure['compiler_name']} | batch_size={failure['batch_size']}")
+                    print(f"    Error: {failure['error']}")
+            print(f"{'='*70}\n")
         
         return results
     
