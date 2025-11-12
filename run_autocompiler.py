@@ -99,15 +99,15 @@ Examples:
     parser.add_argument(
         '--warmup-iters',
         type=int,
-        default=10,
-        help='Number of warmup iterations (default: 10)'
+        default=None,
+        help='Number of warmup iterations (default: from config file)'
     )
     
     parser.add_argument(
         '--measured-iters',
         type=int,
-        default=50,
-        help='Number of measured iterations (default: 50, reduced for quick testing)'
+        default=None,
+        help='Number of measured iterations (default: from config file)'
     )
     
     parser.add_argument(
@@ -142,11 +142,12 @@ Examples:
     # Try to load config for default values
     try:
         cfg = Config.from_yaml(args.config)
-        warmup_iters = args.warmup_iters or cfg.benchmark.warmup_iterations
-        measured_iters = args.measured_iters or cfg.benchmark.measured_iterations
+        warmup_iters = args.warmup_iters if args.warmup_iters is not None else cfg.benchmark.warmup_iterations
+        measured_iters = args.measured_iters if args.measured_iters is not None else cfg.benchmark.measured_iterations
     except Exception:
-        warmup_iters = args.warmup_iters
-        measured_iters = args.measured_iters
+        # If config load fails, use defaults
+        warmup_iters = args.warmup_iters if args.warmup_iters is not None else 10
+        measured_iters = args.measured_iters if args.measured_iters is not None else 50
     
     # Get model wrapper
     model_wrapper = get_model(args.model, input_format)

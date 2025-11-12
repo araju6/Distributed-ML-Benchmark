@@ -210,8 +210,13 @@ def main():
                 compiler = get_compiler(compiler_name)
                 
                 for batch_size in model_config.batch_sizes:
-                    run_stats = runner.run_benchmark(model_wrapper, compiler, batch_size)
-                    combined_results.append(run_stats)
+                    try:
+                        run_stats = runner.run_benchmark(model_wrapper, compiler, batch_size)
+                        combined_results.append(run_stats)
+                    except Exception as e:
+                        print(f"\n✗ Error running benchmark for {model_config.name} | {compiler_name} | batch_size={batch_size}: {e}")
+                        print("  Continuing with remaining benchmarks...")
+                        # Continue with other benchmarks instead of crashing
     
     output_path = f"{cfg.output.save_path}/benchmark_results.csv"
     ResultsWriter.write_csv(combined_results, output_path)
