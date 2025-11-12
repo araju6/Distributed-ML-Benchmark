@@ -46,16 +46,6 @@ def run_benchmark_task(
     from benchmark.core.nsight_profiler import NsightProfiler
     from benchmark.core.prometheus_metrics import PrometheusMetricsExporter
     from benchmark.utils.device import get_device
-    from benchmark.models.resnet import ResNetWrapper
-    from benchmark.models.mobilenet import MobileNetWrapper
-    from benchmark.models.bert import BERTWrapper
-    from benchmark.models.gpt2 import GPT2Wrapper
-    from benchmark.compilers.pytorch_eager import PyTorchEagerCompiler
-    from benchmark.compilers.torch_inductor import TorchInductorCompiler
-    from benchmark.compilers.torchscript import TorchScriptCompiler
-    from benchmark.compilers.onnx_runtime import ONNXRuntimeCompiler
-    from benchmark.compilers.tvm import TVMCompiler
-    from benchmark.compilers.tensorrt import TensorRTCompiler
     
     # Get device (should be cuda:0 after CUDA_VISIBLE_DEVICES is set)
     device = get_device()
@@ -83,39 +73,14 @@ def run_benchmark_task(
             enabled=prometheus_config.get('enabled', False)
         )
     
+    # Import factories here to avoid circular dependencies
+    from benchmark.utils.factories import get_compiler, get_model
+    
     # Create model wrapper
-    if model_name == "resnet50":
-        model_wrapper = ResNetWrapper(input_shape=tuple(model_config['input_shape']), pretrained=True)
-    elif model_name == "mobilenet_v3_large":
-        model_wrapper = MobileNetWrapper(input_shape=tuple(model_config['input_shape']), pretrained=True)
-    elif model_name == "bert_base":
-        model_wrapper = BERTWrapper(max_length=model_config['max_length'], pretrained=True)
-    elif model_name == "gpt2":
-        model_wrapper = GPT2Wrapper(max_length=model_config['max_length'], pretrained=True)
-    else:
-        raise ValueError(f"Unknown model: {model_name}")
+    model_wrapper = get_model(model_name, input_format=model_config)
     
     # Create compiler
-    if compiler_name == "pytorch_eager":
-        compiler = PyTorchEagerCompiler()
-    elif compiler_name == "torch_inductor":
-        compiler = TorchInductorCompiler(mode="default")
-    elif compiler_name == "torchscript" or compiler_name == "torchscript_trace":
-        compiler = TorchScriptCompiler(method="trace")
-    elif compiler_name == "torchscript_script":
-        compiler = TorchScriptCompiler(method="script")
-    elif compiler_name == "onnx_runtime":
-        compiler = ONNXRuntimeCompiler()
-    elif compiler_name == "tvm":
-        compiler = TVMCompiler()
-    elif compiler_name == "tvm_autotuned":
-        compiler = TVMCompiler(use_autotuning=True)
-    elif compiler_name == "tensorrt" or compiler_name == "tensorrt_fp32":
-        compiler = TensorRTCompiler(fp16_mode=False)
-    elif compiler_name == "tensorrt_fp16":
-        compiler = TensorRTCompiler(fp16_mode=True)
-    else:
-        raise ValueError(f"Unknown compiler: {compiler_name}")
+    compiler = get_compiler(compiler_name)
     
     # Run benchmark
     runner = BenchmarkRunner(

@@ -7,38 +7,9 @@ a comparison report to help users choose the best compiler for their model.
 """
 
 import argparse
-import torch
 from benchmark.core.config import Config
 from benchmark.core.autocompiler import AutoCompiler
-from benchmark.models.resnet import ResNetWrapper
-from benchmark.models.mobilenet import MobileNetWrapper
-from benchmark.models.bert import BERTWrapper
-from benchmark.models.gpt2 import GPT2Wrapper
-
-
-def get_model(model_name: str, input_format: dict):
-    """Get model wrapper from name and input format."""
-    if model_name == "resnet50":
-        if "input_shape" not in input_format:
-            raise ValueError("resnet50 requires input_shape")
-        return ResNetWrapper(input_shape=tuple(input_format["input_shape"]), pretrained=True)
-    elif model_name == "mobilenet_v3_large":
-        if "input_shape" not in input_format:
-            raise ValueError("mobilenet_v3_large requires input_shape")
-        return MobileNetWrapper(input_shape=tuple(input_format["input_shape"]), pretrained=True)
-    elif model_name == "bert_base":
-        if "max_length" not in input_format:
-            raise ValueError("bert_base requires max_length")
-        return BERTWrapper(max_length=input_format["max_length"], pretrained=True)
-    elif model_name == "gpt2":
-        if "max_length" not in input_format:
-            raise ValueError("gpt2 requires max_length")
-        return GPT2Wrapper(max_length=input_format["max_length"], pretrained=True)
-    else:
-        raise ValueError(
-            f"Unknown model: {model_name}. "
-            f"Available: resnet50, mobilenet_v3_large, bert_base, gpt2"
-        )
+from benchmark.utils.factories import get_model
 
 
 def main():

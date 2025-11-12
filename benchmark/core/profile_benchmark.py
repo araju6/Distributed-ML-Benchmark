@@ -14,57 +14,8 @@ import argparse
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from benchmark.models.resnet import ResNetWrapper
-from benchmark.models.mobilenet import MobileNetWrapper
-from benchmark.models.bert import BERTWrapper
-from benchmark.models.gpt2 import GPT2Wrapper
-from benchmark.compilers.pytorch_eager import PyTorchEagerCompiler
-from benchmark.compilers.torch_inductor import TorchInductorCompiler
-from benchmark.compilers.torchscript import TorchScriptCompiler
-from benchmark.compilers.onnx_runtime import ONNXRuntimeCompiler
 from benchmark.utils.device import get_device
-
-def get_compiler(compiler_name: str):
-    """Get compiler instance with error handling for optional dependencies."""
-    if compiler_name == "pytorch_eager":
-        return PyTorchEagerCompiler()
-    elif compiler_name == "torch_inductor":
-        return TorchInductorCompiler(mode="default")
-    elif compiler_name == "torchscript" or compiler_name == "torchscript_trace":
-        return TorchScriptCompiler(method="trace")
-    elif compiler_name == "torchscript_script":
-        return TorchScriptCompiler(method="script")
-    elif compiler_name == "onnx_runtime":
-        return ONNXRuntimeCompiler()
-    elif compiler_name == "tvm" or compiler_name == "tvm_autotuned":
-        try:
-            from benchmark.compilers.tvm import TVMCompiler
-            use_autotuning = compiler_name == "tvm_autotuned"
-            return TVMCompiler(use_autotuning=use_autotuning)
-        except ImportError as e:
-            raise ValueError(f"TVM not available: {e}")
-    elif compiler_name == "tensorrt" or compiler_name == "tensorrt_fp32" or compiler_name == "tensorrt_fp16":
-        try:
-            from benchmark.compilers.tensorrt import TensorRTCompiler
-            fp16_mode = compiler_name == "tensorrt_fp16"
-            return TensorRTCompiler(fp16_mode=fp16_mode)
-        except ImportError as e:
-            raise ValueError(f"TensorRT not available: {e}")
-    else:
-        raise ValueError(f"Unknown compiler: {compiler_name}")
-
-def get_model(model_name: str, model_config: dict):
-    """Get model wrapper."""
-    if model_name == "resnet50":
-        return ResNetWrapper(input_shape=tuple(model_config['input_shape']), pretrained=True)
-    elif model_name == "mobilenet_v3_large":
-        return MobileNetWrapper(input_shape=tuple(model_config['input_shape']), pretrained=True)
-    elif model_name == "bert_base":
-        return BERTWrapper(max_length=model_config['max_length'], pretrained=True)
-    elif model_name == "gpt2":
-        return GPT2Wrapper(max_length=model_config['max_length'], pretrained=True)
-    else:
-        raise ValueError(f"Unknown model: {model_name}")
+from benchmark.utils.factories import get_compiler, get_model
 
 def main():
     parser = argparse.ArgumentParser(description='Profile a single benchmark with Nsight Systems')
@@ -87,7 +38,7 @@ def main():
         model_config['max_length'] = args.max_length
     
     # Get model and compiler
-    model_wrapper = get_model(args.model, model_config)
+    model_wrapper = get_model(args.model, input_format=model_config)
     compiler = get_compiler(args.compiler)
     
     # Compile model
