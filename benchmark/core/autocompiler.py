@@ -163,7 +163,7 @@ class AutoCompiler:
                 compiler_display_name=display_name,
                 success=True,
                 metrics=metrics,
-                compile_time=metrics.compile_time if hasattr(metrics, 'compile_time') else None
+                compile_time=metrics.compile_time_sec if hasattr(metrics, 'compile_time_sec') else None
             )
             
         except Exception as e:
@@ -311,7 +311,7 @@ class AutoCompiler:
                 return {
                     "success": True,
                     "metrics": asdict(metrics),
-                    "compile_time": metrics.compile_time if hasattr(metrics, 'compile_time') else None
+                    "compile_time": metrics.compile_time_sec if hasattr(metrics, 'compile_time_sec') else None
                 }
             except Exception as e:
                 return {
